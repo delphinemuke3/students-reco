@@ -1,23 +1,36 @@
-# Docker container for the Node.js application
-FROM node:18-alpine
-
+# Multi-stage Dockerfile: build stage + small production image
+# Stage 1: builder (install all deps and run any build)
+FROM node:18-alpine AS builder
 WORKDIR /app
 
-# Copy package files
+# Install build dependencies
 COPY package*.json ./
+RUN npm ci
 
-# Install dependencies
-RUN npm install --only=production
-
-# Copy application code
+# Copy source and run optional build (if present)
 COPY . .
+RUN npm run build --if-present
 
-# Expose port
+# Stage 2: production (only runtime + production deps)
+FROM node:18-alpine AS production
+WORKDIR /app
+ENV NODE_ENV=production
+
+# Copy package files and install only production deps
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Copy app files (dockerignore ensures node_modules not copied from context)
+COPY --chown=node:node . .
+
+# Use non-root node user provided by official image
+USER node
+
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
+# Healthcheck endpoint
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+  CMD wget -qO- --timeout=2000 http://localhost:3000/health || exit 1
 
-# Start the application
-CMD ["npm", "start"]
+# Start command
+CMD ["node", "index.js"]

@@ -1,4 +1,3 @@
-require('dotenv').config();
 const express = require('express');
 const mysql = require('mysql2/promise');
 const path = require('path');
@@ -10,30 +9,21 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static('public'));
 
-// Set view engine
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
-
 // Database configuration
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || 'password',
-  database: process.env.DB_NAME || 'students_db',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
+  database: process.env.DB_NAME || 'students_db'
 };
 
-let pool;
+let db;
 
 // Initialize database connection
 async function initDB() {
   try {
-    pool = mysql.createPool(dbConfig);
-    const connection = await pool.getConnection();
-    
-    await connection.execute(`
+    db = await mysql.createConnection(dbConfig);
+    await db.execute(`
       CREATE TABLE IF NOT EXISTS students (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(100) NOT NULL,
@@ -42,8 +32,6 @@ async function initDB() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    
-    connection.release();
     console.log('Database connected and students table created');
   } catch (error) {
     console.error('Database connection failed:', error);
@@ -54,10 +42,7 @@ async function initDB() {
 // Routes
 app.get('/', async (req, res) => {
   try {
-    const connection = await pool.getConnection();
-    const [students] = await connection.execute('SELECT * FROM students ORDER BY created_at DESC');
-    connection.release();
-    
+    const [students] = await db.execute('SELECT * FROM students ORDER BY created_at DESC');
     res.render('index', { students });
   } catch (error) {
     console.error('Error fetching students:', error);
@@ -74,13 +59,10 @@ app.post('/add-student', async (req, res) => {
   }
 
   try {
-    const connection = await pool.getConnection();
-    await connection.execute(
+    await db.execute(
       'INSERT INTO students (name, age, classroom) VALUES (?, ?, ?)',
       [name, age, classroom]
     );
-    connection.release();
-    
     res.redirect('/');
   } catch (error) {
     console.error('Error creating student:', error);
@@ -97,6 +79,10 @@ const PORT = process.env.PORT || 3000;
 
 async function startServer() {
   await initDB();
+  
+  // Set view engine
+  app.set('view engine', 'ejs');
+  app.set('views', path.join(__dirname, 'views'));
   
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
