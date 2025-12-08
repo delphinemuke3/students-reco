@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="/styles.css">
 </head>
 <body class="bg-light">
-    <div class="container mt-5">
+    <div class="container mt-5"> 
         <div class="row">
             <div class="col-md-10 mx-auto">
                 <h1 class="text-center mb-4">
@@ -22,7 +22,8 @@
                         <h5 class="mb-0"><i class="fas fa-plus-circle"></i> Add New Student</h5>
                     </div>
                     <div class="card-body">
-                        <form method="POST" action="/add-student">
+                        <!-- changed: added id to form so JS can intercept submission -->
+                        <form id="addStudentForm" method="POST" action="/add-student">
                             <div class="row">
                                 <div class="col-md-4 mb-3">
                                     <label for="name" class="form-label">Name</label>
@@ -60,29 +61,66 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- changed: replace inline script with JS that uses localStorage + fetch fallback -->
     <script>
-        // Load students on page load
-        document.addEventListener('DOMContentLoaded', loadStudents);
+        // Load students on page load and wire form
+        document.addEventListener('DOMContentLoaded', () => {
+            loadStudents();
+            const form = document.getElementById('addStudentForm');
+            if (form) form.addEventListener('submit', handleAddStudent);
+        });
 
         async function loadStudents() {
             try {
                 const response = await fetch('/api/students');
+                if (!response.ok) throw new Error('Network response not ok');
                 const students = await response.json();
+                saveStudentsToLocal(students);
                 displayStudents(students);
             } catch (error) {
-                console.error('Error loading students:', error);
-                // Fallback: page will render students via EJS
+                console.warn('Error loading students from server, falling back to localStorage:', error);
+                const students = getStudentsFromLocal();
+                displayStudents(students);
             }
+        }
+
+        function handleAddStudent(event) {
+            event.preventDefault();
+            const form = event.target;
+            const name = (form.name.value || '').trim();
+            const age = parseInt(form.age.value, 10);
+            const classroom = (form.classroom.value || '').trim();
+
+            if (!name || !Number.isFinite(age) || age <= 0 || !classroom) {
+                showAlert('Please fill in valid student details.', 'danger');
+                return;
+            }
+
+            const student = {
+                id: generateId(),
+                name,
+                age,
+                classroom,
+                created_at: new Date().toISOString()
+            };
+
+            const students = getStudentsFromLocal();
+            students.unshift(student); // newest first
+            saveStudentsToLocal(students);
+            displayStudents(students);
+            form.reset();
+            showAlert('Student added successfully.', 'success');
         }
 
         function displayStudents(students) {
             const studentsList = document.getElementById('studentsList');
-            
-            if (students.length === 0) {
+            if (!studentsList) return;
+
+            if (!students || students.length === 0) {
                 studentsList.innerHTML = '<div class="text-center text-muted p-4"><p>No student records yet. Add your first student using the form above!</p></div>';
                 return;
             }
-            
+
             const tableHTML = `
                 <div class="table-responsive">
                     <table class="table table-striped table-hover mb-0">
@@ -98,19 +136,69 @@
                         <tbody>
                             ${students.map(student => `
                                 <tr>
-                                    <td><strong>${student.id}</strong></td>
-                                    <td>${student.name}</td>
-                                    <td>${student.age}</td>
-                                    <td><span class="badge bg-info">${student.classroom}</span></td>
-                                    <td><small>${new Date(student.created_at).toLocaleDateString()}</small></td>
+                                    <td><strong>${escapeHtml(student.id)}</strong></td>
+                                    <td>${escapeHtml(student.name)}</td>
+                                    <td>${escapeHtml(String(student.age))}</td>
+                                    <td><span class="badge bg-info">${escapeHtml(student.classroom)}</span></td>
+                                    <td><small>${new Date(student.created_at).toLocaleString()}</small></td>
                                 </tr>
                             `).join('')}
                         </tbody>
                     </table>
                 </div>
             `;
-            
             studentsList.innerHTML = tableHTML;
+        }
+
+        // LocalStorage helpers
+        function getStudentsFromLocal() {
+            try {
+                return JSON.parse(localStorage.getItem('students') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+        function saveStudentsToLocal(students) {
+            try {
+                localStorage.setItem('students', JSON.stringify(students || []));
+            } catch (e) {
+                console.warn('Could not save students to localStorage', e);
+            }
+        }
+
+        // Small utilities
+        function generateId() {
+            return 's' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+        }
+
+        function showAlert(message, type = 'info', timeout = 2500) {
+            const container = document.querySelector('.container');
+            if (!container) {
+                alert(message);
+                return;
+            }
+            const id = 'alert-' + Date.now();
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = `
+                <div id="${id}" class="alert alert-${type} alert-dismissible fade show" role="alert" style="position:fixed;top:20px;right:20px;z-index:1080;">
+                    ${escapeHtml(message)}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>`;
+            container.appendChild(wrapper.firstElementChild);
+            if (timeout > 0) setTimeout(() => {
+                const el = document.getElementById(id);
+                if (el) el.classList.remove('show');
+            }, timeout);
+        }
+
+        // basic HTML-escape to avoid injection in injected HTML
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
         }
     </script>
 </body>
