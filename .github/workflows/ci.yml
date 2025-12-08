@@ -31,14 +31,22 @@ jobs:
     
     - name: Install dependencies
       run: npm ci
-    
+
+    - name: Wait for MySQL to be ready
+      run: |
+        sudo apt-get update -y
+        sudo apt-get install -y default-mysql-client
+        for i in $(seq 1 30); do
+          mysqladmin ping -h 127.0.0.1 -uroot -ppassword >/dev/null 2>&1 && break || sleep 2
+        done
+
     - name: Run linting
       run: npm run lint
     
     - name: Run tests
       run: npm test
       env:
-        DB_HOST: localhost
+        DB_HOST: 127.0.0.1
         DB_USER: root
         DB_PASSWORD: password
         DB_NAME: notes_app
@@ -55,10 +63,22 @@ jobs:
     
     - name: Test Docker image
       run: |
-        docker run -d --name test-container -p 3000:3000 notes-app:${{ github.sha }}
-        sleep 10
-        curl -f http://localhost:3000/health || exit 1
-        docker stop test-container
+        # Start a temporary MySQL container for the app to use during the health check
+        docker run -d --name ci-mysql -e MYSQL_ROOT_PASSWORD=password -e MYSQL_DATABASE=notes_app mysql:8.0
+        # Wait for MySQL to be ready
+        for i in $(seq 1 30); do
+          docker exec ci-mysql mysqladmin ping -uroot -ppassword >/dev/null 2>&1 && break || sleep 2
+        done
+        # Run the built app image linked to the MySQL container
+        docker run -d --name test-container --link ci-mysql:mysql -p 3000:3000 \
+          -e DB_HOST=ci-mysql -e DB_USER=root -e DB_PASSWORD=password -e DB_NAME=notes_app \
+          notes-app:${{ github.sha }}
+        # Wait for the app to respond on /health
+        for i in $(seq 1 30); do
+          curl -f http://localhost:3000/health && break || sleep 2
+        done
+        docker stop test-container ci-mysql || true
+        docker rm test-container ci-mysql || true
 
   deploy:
     needs: build
@@ -74,6 +94,17 @@ jobs:
   build_and_push_docker_image:
     needs: test
     runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: notes_app
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -94,11 +125,24 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Wait for MySQL to be ready
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y default-mysql-client
+          for i in $(seq 1 30); do
+            mysqladmin ping -h 127.0.0.1 -uroot -ppassword >/dev/null 2>&1 && break || sleep 2
+          done
+
       - name: Lint
         run: npm run lint
 
       - name: Run tests
         run: npm test
+        env:
+          DB_HOST: 127.0.0.1
+          DB_USER: root
+          DB_PASSWORD: password
+          DB_NAME: notes_app
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2

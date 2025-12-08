@@ -31,16 +31,24 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+
+      - name: Wait for MySQL to be ready
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y default-mysql-client
+          for i in $(seq 1 30); do
+            mysqladmin ping -h 127.0.0.1 -uroot -proot_password >/dev/null 2>&1 && break || sleep 2
+          done
 
       - name: Run ESLint
         run: npm run lint
@@ -49,7 +57,7 @@ jobs:
       - name: Run unit tests
         run: npm run test:unit
         env:
-          DB_HOST: localhost
+          DB_HOST: 127.0.0.1
           DB_USER: root
           DB_PASSWORD: root_password
           DB_NAME: students_db_test
@@ -57,7 +65,7 @@ jobs:
       - name: Run integration tests
         run: npm run test:integration
         env:
-          DB_HOST: localhost
+          DB_HOST: 127.0.0.1
           DB_USER: root
           DB_PASSWORD: root_password
           DB_NAME: students_db_test
@@ -168,7 +176,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
