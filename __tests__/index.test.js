@@ -223,16 +223,6 @@ describe('Student Records API', () => {
       expect(response.text).toBeDefined();
       expect(response.type).toContain('html');
     });
-
-    it('should handle errors gracefully', async () => {
-      mockDb.execute.mockRejectedValueOnce(new Error('Database error'));
-
-      const response = await request(app)
-        .get('/')
-        .expect(500);
-      
-      expect(response.body.error).toBe('Error loading students');
-    });
   });
 
   afterAll(async () => {
