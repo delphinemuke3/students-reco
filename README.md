@@ -83,6 +83,32 @@ A full-stack web application for managing student records with a Node.js/Express
    docker-compose down
    ```
 
+## Docker: build & push (local)
+
+Note: Docker repository names and tags must be lowercase. Use lowercase for your Docker Hub username and repository.
+
+Build locally:
+```bash
+# avoid uppercase in repo/name and tag
+docker build -t delphinemuke3/students_reco:latest .
+```
+
+Push to Docker Hub (after docker login):
+```bash
+docker push delphinemuke3/students_reco:latest
+```
+
+If you prefer GHCR (GitHub Container Registry), tag accordingly:
+```bash
+# GHCR format: ghcr.io/<OWNER>/<REPO>:<tag>
+docker tag delphinemuke3/students_reco:latest ghcr.io/<your-gh-user-or-org>/students_reco:latest
+docker push ghcr.io/<your-gh-user-or-org>/students_reco:latest
+```
+
+CI: GitHub Actions can build and push images automatically (see `.github/workflows/main-pipeline.yml`). Make sure you set these repository secrets for Docker Hub:
+- DOCKER_HUB_USERNAME
+- DOCKER_HUB_TOKEN (recommended: Docker Hub access token)
+
 ## Running Tests
 
 ```bash

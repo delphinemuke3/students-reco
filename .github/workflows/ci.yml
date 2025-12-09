@@ -1,9 +1,10 @@
-name: DEPRECATED - moved to .github/workflows/ci.yml
+name: Main CI/CD Pipeline
 
-# This file is intentionally kept as a manual dispatch only to avoid duplicate automatic runs.
-# Active CI is now in .github/workflows/ci.yml
 on:
-  workflow_dispatch: {}
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
 
 env:
   NODE_VERSION: '18'
