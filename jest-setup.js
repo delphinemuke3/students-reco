@@ -7,6 +7,7 @@ process.env.DB_NAME = process.env.DB_NAME || 'students_db_test';
 process.env.PORT = process.env.PORT || 3001;
 
 // Suppress console logs during tests (optional)
+// eslint-disable-next-line no-console
 global.console = {
   ...console,
   log: jest.fn(),

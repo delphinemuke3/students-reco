@@ -1,46 +1,109 @@
-# Student Records App
+# Student Records Management App
 
-A simple web application for managing student information in a school or classroom.
+A full-stack web application for managing student records with a Node.js/Express backend, MySQL database, and a Bootstrap-styled frontend.
 
 ## Features
 
-- ✅ Add new students with name, age, and classroom
-- ✅ View all student records in a table format
-- ✅ MySQL database for persistent storage
-- ✅ Simple server-rendered HTML interface
-- ✅ Dockerized backend and database
+- ✅ Add new student records with name, age, and classroom
+- ✅ View all student records in a responsive table
+- ✅ Persistent data storage with MySQL
+- ✅ Health check endpoint for monitoring
+- ✅ Docker support for containerized deployment
+- ✅ Comprehensive test suite with Jest
+- ✅ ESLint configured for code quality
 - ✅ Environment-based configuration
 
 ## Tech Stack
 
-- **Backend**: Node.js + Express
-- **Database**: MySQL
-- **Templating**: EJS
-- **Frontend**: Bootstrap 5 + Font Awesome
-- **Containerization**: Docker & Docker Compose
+- **Backend**: Node.js, Express.js
+- **Database**: MySQL 8.0
+- **Frontend**: EJS templates, Bootstrap 5, Vanilla JavaScript
+- **Testing**: Jest, Supertest
+- **DevOps**: Docker, Docker Compose
+- **Code Quality**: ESLint
+
+## Prerequisites
+
+- Node.js 18+ or Docker/Docker Compose
+- MySQL 8.0+ (if running locally without Docker)
+- npm 9+
 
 ## Installation & Setup
 
-### Local Development
+### Option 1: Local Setup (without Docker)
+
+1. **Clone the repository**
+   ```bash
+   cd students-reco
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Set up environment variables**
+   ```bash
+   cp .env.example .env
+   ```
+   Edit `.env` with your MySQL credentials:
+   ```
+   DB_HOST=localhost
+   DB_USER=root
+   DB_PASSWORD=your_password
+   DB_NAME=students_db
+   PORT=3000
+   NODE_ENV=development
+   ```
+
+4. **Create the database**
+   ```bash
+   mysql -u root -p < init.sql
+   ```
+
+5. **Start the server**
+   ```bash
+   npm start
+   ```
+   Visit `http://localhost:3000`
+
+### Option 2: Docker Setup (Recommended)
+
+1. **Build and run with Docker Compose**
+   ```bash
+   docker-compose up --build
+   ```
+
+2. **Access the application**
+   - Frontend: `http://localhost:3000`
+   - Health Check: `http://localhost:3000/health`
+
+3. **Stop containers**
+   ```bash
+   docker-compose down
+   ```
+
+## Running Tests
 
 ```bash
-# Install dependencies
-npm install
+# Run all tests
+npm test
 
-# Create .env file with database credentials
-cp .env.example .env
+# Run tests in watch mode
+npm test -- --watch
 
-# Start the application
-npm run dev
+# Generate coverage report
+npm test -- --coverage
 ```
 
-### Docker Deployment
+## Available Scripts
 
 ```bash
-# Build and run with Docker Compose
-docker-compose up --build
-
-# Access the app at http://localhost:3000
+npm start          # Start the server
+npm test           # Run test suite
+npm run lint       # Run ESLint
+npm run lint:fix   # Fix ESLint issues
+npm run dev        # Start with nodemon (development)
 ```
 
 ## Project Structure

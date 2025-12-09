@@ -1,9 +1,7 @@
 require('dotenv').config();
 const express = require('express');
-const bodyParser = require('body-parser');
 const mysql = require('mysql2/promise');
-const path = require('path');
-
+const bodyParser = require('body-parser');
 const app = express();
 
 // Middleware
@@ -97,7 +95,8 @@ app.get('/', async (req, res) => {
     `;
     res.send(html);
   } catch (error) {
-    console.error(error);
+    // eslint-disable-next-line no-console
+    console.error('Error fetching students:', error);
     res.status(500).send('Error loading students');
   }
 });
@@ -116,7 +115,8 @@ app.post('/add-student', async (req, res) => {
     connection.release();
     res.redirect('/');
   } catch (error) {
-    console.error(error);
+    // eslint-disable-next-line no-console
+    console.error('Error creating student:', error);
     res.status(500).send('Error adding student');
   }
 });
@@ -125,6 +125,7 @@ app.post('/add-student', async (req, res) => {
 const PORT = process.env.PORT || 3000;
 if (require.main === module) {
   app.listen(PORT, () => {
+    // eslint-disable-next-line no-console
     console.log(`Server running on http://localhost:${PORT}`);
   });
 }

@@ -32,8 +32,10 @@ async function initDB() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    // eslint-disable-next-line no-console
     console.log('Database connected and students table created');
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error('Database connection failed:', error);
     process.exit(1);
   }
@@ -45,6 +47,7 @@ app.get('/', async (req, res) => {
     const [students] = await db.execute('SELECT * FROM students ORDER BY created_at DESC');
     res.render('index', { students });
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error('Error fetching students:', error);
     res.status(500).send('Error loading students');
   }
@@ -65,6 +68,7 @@ app.post('/add-student', async (req, res) => {
     );
     res.redirect('/');
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error('Error creating student:', error);
     res.status(500).send('Failed to add student');
   }
@@ -85,6 +89,7 @@ async function startServer() {
   app.set('views', path.join(__dirname, 'views'));
   
   app.listen(PORT, () => {
+    // eslint-disable-next-line no-console
     console.log(`Server running on port ${PORT}`);
   });
 }

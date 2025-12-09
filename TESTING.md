@@ -2,6 +2,34 @@
 
 This document provides information about testing the Student Records App.
 
+## Testing Documentation
+
+Comprehensive guide for running, writing, and understanding tests in the Student Records App.
+
+### Overview
+
+This project uses **Jest** for testing with **Supertest** for HTTP assertions and integration tests.
+
+### Test Setup
+
+#### Configuration Files
+
+- **jest.config.js**: Main Jest configuration
+- **jest-setup.js**: Test environment setup (env vars, console suppression)
+
+#### Environment Variables
+
+The following are set for tests (`jest-setup.js`):
+
+```javascript
+NODE_ENV=test
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=root_password
+DB_NAME=students_db_test
+PORT=3001
+```
+
 ## Test Structure
 
 ```
@@ -13,6 +41,28 @@ __tests__/
 ```
 
 ## Running Tests
+
+### Basic Commands
+
+```bash
+# Run all tests once
+npm test
+
+# Run tests in watch mode
+npm test -- --watch
+
+# Run specific test file
+npm test -- index.test.js
+
+# Generate coverage report
+npm test -- --coverage
+
+# Run tests with verbose output
+npm test -- --verbose
+
+# Clear Jest cache
+npm test -- --clearCache
+```
 
 ### All Tests
 ```bash
@@ -47,6 +97,21 @@ The project maintains coverage thresholds:
 - **Lines**: 60%
 - **Statements**: 60%
 
+Current thresholds (configured in `jest.config.js`):
+
+| Metric | Threshold |
+|--------|-----------|
+| Branches | 60% |
+| Functions | 60% |
+| Lines | 60% |
+| Statements | 60% |
+
+View coverage report:
+```bash
+npm test -- --coverage
+open coverage/lcov-report/index.html
+```
+
 ## Unit Tests
 
 Unit tests validate:
@@ -69,6 +134,173 @@ Integration tests validate:
 - Error handling
 - Request validation
 - Response headers
+
+### Example Test Suite
+
+```javascript
+describe('API Endpoints', () => {
+  describe('GET /health', () => {
+    it('should return 200 with OK status', async () => {
+      const response = await request(app)
+        .get('/health')
+        .expect(200);
+      
+      expect(response.body.status).toBe('OK');
+      expect(response.body.timestamp).toBeDefined();
+    });
+  });
+
+  describe('POST /add-student', () => {
+    it('should add a student and redirect', async () => {
+      const response = await request(app)
+        .post('/add-student')
+        .send({
+          name: 'John Doe',
+          age: 15,
+          classroom: '10A'
+        })
+        .expect(302);
+      
+      expect(response.headers.location).toBe('/');
+    });
+
+    it('should return 400 for missing fields', async () => {
+      await request(app)
+        .post('/add-student')
+        .send({ name: 'John Doe' })
+        .expect(400);
+    });
+  });
+});
+```
+
+## Writing Tests
+
+### Test Naming Convention
+
+```javascript
+describe('Feature/Component Name', () => {
+  it('should [expected behavior]', () => {
+    // Test implementation
+  });
+});
+```
+
+### Example: Testing an Endpoint
+
+```javascript
+describe('POST /add-student', () => {
+  it('should create a new student record', async () => {
+    // Arrange
+    const studentData = {
+      name: 'Jane Smith',
+      age: 16,
+      classroom: '11B'
+    };
+
+    // Act
+    const response = await request(app)
+      .post('/add-student')
+      .send(studentData)
+      .expect(302); // Expect redirect on success
+
+    // Assert
+    expect(response.headers.location).toBe('/');
+  });
+});
+```
+
+### Example: Testing Error Handling
+
+```javascript
+describe('Error Handling', () => {
+  it('should return 400 when required fields are missing', async () => {
+    const response = await request(app)
+      .post('/add-student')
+      .send({ name: 'John' }) // Missing age and classroom
+      .expect(400);
+
+    expect(response.text).toContain('All fields are required');
+  });
+});
+```
+
+## Debugging Tests
+
+### Run specific test file
+```bash
+npm test -- __tests__/unit/index.test.js
+```
+
+### Run tests matching pattern
+```bash
+npm test -- --testNamePattern="validation"
+```
+
+### Debug mode
+```bash
+node --inspect-brk node_modules/.bin/jest --runInBand
+```
+
+### Run Single Test
+
+```bash
+npm test -- --testNamePattern="should add a student"
+```
+
+### Debug with Node Inspector
+
+```bash
+node --inspect-brk node_modules/.bin/jest --runInBand
+```
+
+Then open `chrome://inspect` in Chrome.
+
+### Console Output in Tests
+
+```javascript
+it('should log output', () => {
+  console.log('Debug info');
+  expect(true).toBe(true);
+});
+```
+
+Run with verbose flag to see console output:
+```bash
+npm test -- --verbose
+```
+
+## Troubleshooting
+
+### Tests timeout
+Increase timeout in jest.config.js:
+```javascript
+testTimeout: 10000 // 10 seconds
+```
+
+### MySQL connection errors
+Ensure MySQL service is running:
+```bash
+docker-compose up -d db
+```
+
+### Coverage thresholds
+If coverage is below threshold, add more tests or update `jest.config.js`
+
+## Best Practices
+
+1. **Isolation** - Each test should be independent
+2. **Clarity** - Test names should clearly describe what's being tested
+3. **AAA Pattern** - Arrange, Act, Assert
+4. **Mocking** - Mock external dependencies (database, external APIs)
+5. **Cleanup** - Clean up resources after each test
+6. **Assertions** - Use specific assertions instead of generic ones
+
+## Resources
+
+- [Jest Documentation](https://jestjs.io/)
+- [Supertest Documentation](https://github.com/visionmedia/supertest)
+- [Testing Best Practices](https://testingjavascript.com/)
 
 ## CI/CD Pipeline
 
@@ -117,98 +349,105 @@ Set these secrets in GitHub Settings:
 
 Emails are sent only on pipeline failure.
 
-## Writing New Tests
+## Database Testing
 
-### Unit Test Template
+### Test Database Setup
+
+The test database (`students_db_test`) is automatically created by:
+1. MySQL Docker image initialization
+2. `init.sql` script execution
+
+### Mocking Database
+
+For unit tests, mock database calls:
 
 ```javascript
-describe('Feature Name', () => {
-  beforeEach(() => {
-    // Setup
-  });
+jest.mock('mysql2/promise', () => ({
+  createConnection: jest.fn().mockResolvedValue({
+    execute: jest.fn().mockResolvedValue([[]]),
+  }),
+}));
+```
 
-  afterEach(() => {
-    // Cleanup
-  });
+### Clearing Test Data
 
-  test('should do something specific', () => {
-    // Arrange
-    const input = 'test';
+To clear test data between test runs:
 
-    // Act
-    const result = functionUnderTest(input);
-
-    // Assert
-    expect(result).toBe('expected output');
-  });
+```javascript
+beforeEach(async () => {
+  await db.execute('TRUNCATE TABLE students');
 });
 ```
 
-### Integration Test Template
+## Common Test Patterns
+
+### Testing Async Functions
 
 ```javascript
-describe('API Endpoint', () => {
-  let app;
-
-  beforeEach(() => {
-    app = setupApp();
-  });
-
-  test('should return 200 for valid request', async () => {
-    const response = await request(app)
-      .post('/endpoint')
-      .send({ data: 'value' });
-
-    expect(response.status).toBe(200);
-  });
+it('should handle async operations', async () => {
+  const result = await someAsyncFunction();
+  expect(result).toEqual(expectedValue);
 });
 ```
 
-## Debugging Tests
+### Testing Promises
 
-### Run specific test file
-```bash
-npm test -- __tests__/unit/index.test.js
-```
-
-### Run tests matching pattern
-```bash
-npm test -- --testNamePattern="validation"
-```
-
-### Debug mode
-```bash
-node --inspect-brk node_modules/.bin/jest --runInBand
-```
-
-## Troubleshooting
-
-### Tests timeout
-Increase timeout in jest.config.js:
 ```javascript
-testTimeout: 10000 // 10 seconds
+it('should resolve with data', () => {
+  return functionReturningPromise()
+    .then(data => {
+      expect(data).toEqual(expectedData);
+    });
+});
 ```
 
-### MySQL connection errors
-Ensure MySQL service is running:
-```bash
-docker-compose up -d db
+### Testing Error Cases
+
+```javascript
+it('should throw an error on invalid input', () => {
+  expect(() => functionThatThrows()).toThrow('Error message');
+});
 ```
 
-### Coverage thresholds
-If coverage is below threshold, add more tests or update `jest.config.js`
+### Testing with Mocks
 
-## Best Practices
+```javascript
+jest.mock('./module', () => ({
+  functionName: jest.fn().mockReturnValue('mocked value')
+}));
 
-1. **Isolation** - Each test should be independent
-2. **Clarity** - Test names should clearly describe what's being tested
-3. **AAA Pattern** - Arrange, Act, Assert
-4. **Mocking** - Mock external dependencies (database, external APIs)
-5. **Cleanup** - Clean up resources after each test
-6. **Assertions** - Use specific assertions instead of generic ones
+it('should call mocked function', () => {
+  const result = functionName();
+  expect(functionName).toHaveBeenCalled();
+  expect(result).toBe('mocked value');
+});
+```
 
-## Resources
+## GitHub Actions Example
 
-- [Jest Documentation](https://jestjs.io/)
-- [Supertest Documentation](https://github.com/visionmedia/supertest)
-- [Testing Best Practices](https://testingjavascript.com/)
+```yaml
+name: Tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root_password
+          MYSQL_DATABASE: students_db_test
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '18'
+      - run: npm install
+      - run: npm test
+      - run: npm run lint
+```
