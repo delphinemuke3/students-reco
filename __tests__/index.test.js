@@ -40,7 +40,7 @@ describe('Student Records API', () => {
     app.get('/', async (req, res) => {
       try {
         const [students] = await db.execute('SELECT * FROM students ORDER BY created_at DESC');
-        res.json(students);
+        res.render('index', { students });
       } catch (error) {
         res.status(500).json({ error: 'Error loading students' });
       }
@@ -56,7 +56,7 @@ describe('Student Records API', () => {
       try {
         await db.execute(
           'INSERT INTO students (name, age, classroom) VALUES (?, ?, ?)',
-          [name, age, classroom]
+          [name, parseInt(age, 10), classroom]
         );
         res.status(201).json({ message: 'Student added successfully' });
       } catch (error) {
@@ -104,7 +104,7 @@ describe('Student Records API', () => {
         .post('/add-student')
         .send({
           name: 'John Doe',
-          age: 15,
+          age: '15',
           classroom: '10A'
         })
         .expect(201);
@@ -112,7 +112,7 @@ describe('Student Records API', () => {
       expect(response.body.message).toBe('Student added successfully');
       expect(mockDb.execute).toHaveBeenCalledWith(
         'INSERT INTO students (name, age, classroom) VALUES (?, ?, ?)',
-        ['John Doe', '15', '10A']
+        ['John Doe', 15, '10A']
       );
     });
 
@@ -220,7 +220,8 @@ describe('Student Records API', () => {
         .get('/')
         .expect(200);
       
-      expect(Array.isArray(response.body)).toBe(true);
+      expect(response.text).toBeDefined();
+      expect(response.type).toContain('html');
     });
 
     it('should handle errors gracefully', async () => {
