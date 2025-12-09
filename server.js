@@ -10,7 +10,7 @@ const app = express();
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
-// MySQL Connection Pool
+// MySQL pool (will not establish queries until used)
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
@@ -21,7 +21,12 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
-// Route: Display home page with form and student records
+// Route: lightweight health check (no DB required)
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// Route: home page uses DB (kept unchanged)
 app.get('/', async (req, res) => {
   try {
     const connection = await pool.getConnection();
@@ -97,7 +102,7 @@ app.get('/', async (req, res) => {
   }
 });
 
-// Route: Handle form submission to add a student
+// Route: add student (unchanged)
 app.post('/add-student', async (req, res) => {
   const { name, age, classroom } = req.body;
 
@@ -116,8 +121,12 @@ app.post('/add-student', async (req, res) => {
   }
 });
 
-// Start server
+// Export app for tests and only start listening when run directly
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;

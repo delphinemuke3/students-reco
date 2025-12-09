@@ -9,6 +9,12 @@ RUN npm ci
 
 # Copy source and run optional build (if present)
 COPY . .
+
+# Run tests inside the builder to fail early (keeps CI/builds safe)
+# Note: tests should avoid requiring external services or mock them in CI
+RUN npm test --if-present
+
+# Optional build step (if your project has a build)
 RUN npm run build --if-present
 
 # Stage 2: production (only runtime + production deps)
