@@ -1,5 +1,4 @@
 const request = require('supertest');
-const mysql = require('mysql2/promise');
 
 // Note: In a real scenario, you'd mock the database or use a test database
 // For now, we'll create a minimal test suite that can run with proper setup

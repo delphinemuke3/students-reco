@@ -17,3 +17,6 @@ global.console = {
   // Keeping error to see actual errors
   error: console.error,
 };
+
+// eslint-disable-next-line no-console
+console.log('Test environment variables set.');
