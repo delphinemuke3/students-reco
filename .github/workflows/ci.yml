@@ -231,6 +231,6 @@ jobs:
     steps:
       - uses: slackapi/slack-github-action@v1.24.0
         with:
-          payload: '{"text":"⚠️ Pipeline Failed on ${{ github.ref_name }}"}'
+          payload: '{"text":" Pipeline Failed on ${{ github.ref_name }}"}'
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
