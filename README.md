@@ -13,7 +13,6 @@ A full-stack web application for managing student records with a Node.js/Express
 - ✅ ESLint configured for code quality
 - ✅ Environment-based configuration
 
-## Tech Stack
 
 - **Backend**: Node.js, Express.js
 - **Database**: MySQL 8.0
