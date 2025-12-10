@@ -5,7 +5,7 @@ on:
     branches:
       - "*"
     tags:
-      - "*" 
+      - "*"
   pull_request:
   workflow_dispatch:
 
@@ -13,6 +13,7 @@ env:
   NODE_VERSION: "18"
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+
 jobs:
   # -----------------------------------------------------
   # 1. CODE QUALITY & SECURITY
@@ -20,7 +21,6 @@ jobs:
   quality-and-security:
     name: Code Quality & Security
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -47,7 +47,7 @@ jobs:
     name: Run Tests
     runs-on: ubuntu-latest
     needs: quality-and-security
-
+    continue-on-error: false  # stop if tests fail
     services:
       mysql:
         image: mysql:8.0
@@ -61,18 +61,14 @@ jobs:
           --health-retries=3
         ports:
           - 3306:3306
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-
       - name: Install deps
         run: npm ci
-
       - name: Wait for MySQL
         run: |
           sudo apt update -y
@@ -80,7 +76,6 @@ jobs:
           for i in $(seq 1 30); do
             mysqladmin ping -h 127.0.0.1 -uroot -proot_password >/dev/null 2>&1 && break || sleep 2
           done
-
       - name: Run Unit Tests
         run: npm run test:unit
         env:
@@ -88,7 +83,6 @@ jobs:
           DB_USER: root
           DB_PASSWORD: root_password
           DB_NAME: students_db_test
-
       - name: Run Integration Tests
         run: npm run test:integration
         env:
@@ -96,16 +90,13 @@ jobs:
           DB_USER: root
           DB_PASSWORD: root_password
           DB_NAME: students_db_test
-
       - name: Coverage Report
         run: npm test -- --coverage
-
       - name: Upload Coverage
         uses: codecov/codecov-action@v3
         with:
           files: ./coverage/lcov.info
           fail_ci_if_error: false
-
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
@@ -114,20 +105,16 @@ jobs:
           path: coverage/
 
   # -----------------------------------------------------
-  # 3. BUILD DOCKER IMAGE (for every push)
+  # 3. BUILD DOCKER IMAGE
   # -----------------------------------------------------
   build-docker:
     name: Build Docker Image
     runs-on: ubuntu-latest
     needs: test
-    if: github.event_name == 'push'
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: docker/setup-qemu-action@v2
       - uses: docker/setup-buildx-action@v2
-
       - name: Metadata
         id: meta
         uses: docker/metadata-action@v4
@@ -136,7 +123,6 @@ jobs:
           tags: |
             type=sha
             type=ref,event=branch
-
       - name: Build Docker Image
         uses: docker/build-push-action@v4
         with:
@@ -146,18 +132,12 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
 
   # -----------------------------------------------------
-  # 4. PUSH IMAGE (main branch only)
+  # 4. PUSH DOCKER IMAGE
   # -----------------------------------------------------
   push-docker:
     name: Push Docker Images
     runs-on: ubuntu-latest
     needs: build-docker
-    if: github.ref == 'refs/heads/main'
-
-    permissions:
-      contents: read
-      packages: write
-
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-qemu-action@v2
@@ -198,47 +178,46 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
 
   # -----------------------------------------------------
-  ## -----------------------------------------------------
-# 5. RELEASE (tags only)
-# -----------------------------------------------------
-release:
-  name: Publish Release
-  runs-on: ubuntu-latest
-  needs: push-docker
-  if: always()   # <- changed from startsWith(...)
-  steps:
-    - uses: actions/checkout@v4
+  # 5. PUBLISH RELEASE
+  # -----------------------------------------------------
+  release:
+    name: Publish Release
+    runs-on: ubuntu-latest
+    needs: push-docker
+    if: always()  # run even if push-docker fails
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
-      with:
-        draft: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-# -----------------------------------------------------
-# 6. SLACK NOTIFICATION SUCCESS
-# -----------------------------------------------------
-notify-success:
-  runs-on: ubuntu-latest
-  needs: [quality-and-security, test, build-docker]
-  if: always()   # <- changed from success()
-  steps:
-    - uses: slackapi/slack-github-action@v1.24.0
-      with:
-        payload: '{"text":"✅ Pipeline Success on branch ${{ github.ref_name }}"}'
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+  # -----------------------------------------------------
+  # 6. SLACK SUCCESS NOTIFICATION
+  # -----------------------------------------------------
+  notify-success:
+    runs-on: ubuntu-latest
+    needs: [quality-and-security, test, build-docker]
+    if: always()  # always run
+    steps:
+      - uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: '{"text":"✅ Pipeline Success on branch ${{ github.ref_name }}"}'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
-# -----------------------------------------------------
-# 7. SLACK NOTIFICATION FAILURE
-# -----------------------------------------------------
-notify-failure:
-  runs-on: ubuntu-latest
-  needs: [quality-and-security, test, build-docker]
-  if: always()   # <- changed from failure()
-  steps:
-    - uses: slackapi/slack-github-action@v1.24.0
-      with:
-        payload: '{"text":"⚠️ Pipeline Failed on branch ${{ github.ref_name }}"}'
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+  # -----------------------------------------------------
+  # 7. SLACK FAILURE NOTIFICATION
+  # -----------------------------------------------------
+  notify-failure:
+    runs-on: ubuntu-latest
+    needs: [quality-and-security, test, build-docker]
+    if: always()  # always run
+    steps:
+      - uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: '{"text":"⚠️ Pipeline Failed on branch ${{ github.ref_name }}"}'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
